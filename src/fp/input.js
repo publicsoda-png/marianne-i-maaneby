@@ -8,7 +8,10 @@ addEventListener('keydown', down); addEventListener('keyup', up); addEventListen
 
 const queue = []; // stepped moves from click arrows: {kind:'f'|'b'|'l'|'r', left: seconds}
 export const STEP = 0.22; // seconds per click step
-export function enable(v) { on = v; keys.clear(); queue.length = 0; used = false; }
+export function enable(v) { on = v; keys.clear(); queue.length = 0; used = false; held = null; }
+let held = null; // pil holdt nede (pointerdown → pointerup)
+export function hold(kind) { if (on) held = kind; }
+export function release() { held = null; }
 export function push(kind) { if (queue.length < 2) queue.push({ kind, left: STEP }); }
 let used = false;
 export function use() { used = true; }
@@ -16,6 +19,7 @@ export function use() { used = true; }
 export function read(dt) {
   let fwd = 0, turn = 0;
   for (const k of keys) { const m = MAP[k]; if (m === 'f') fwd += 1; else if (m === 'b') fwd -= 1; else if (m === 'l') turn -= 1; else if (m === 'r') turn += 1; }
+  if (held && !fwd && !turn) { if (held === 'f') fwd = 1; else if (held === 'b') fwd = -1; else if (held === 'l') turn = -1; else if (held === 'r') turn = 1; queue.length = 0; }
   const q = queue[0];
   if (q && !fwd && !turn) {
     const t = Math.min(dt, q.left) / dt; q.left -= dt;

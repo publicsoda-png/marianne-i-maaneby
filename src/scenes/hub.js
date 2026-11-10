@@ -45,6 +45,7 @@ export const missionDone = (n = act()) => !MISSION[n] || !!save.flags['fp_' + MI
 export const actReady = (n = act()) => actDone(n) && missionDone(n);
 /** Hvor "Fortsæt" på titlen skal føre hen: [scene-id, arg]. */
 export function resumeTarget() {
+  if (save.flags.credits) return ['credits'];
   if (save.flags.regn4) return ['fest'];
   if (!save.flags['akt' + act()]) return ['drivhus'];
   return ['hub', { back: true }];

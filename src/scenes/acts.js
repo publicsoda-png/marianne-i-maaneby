@@ -380,6 +380,7 @@ register({
   id: 'credits',
   async enter() {
     this.t0 = performance.now(); this.off = 0; this.fast = false; this.lastStep = 0; this.snork = -1; this.gone = false;
+    if (!save.flags.credits) { save.flags.credits = true; touch(); persist(true); } // Fortsæt efter genindlæsning starter her, ikke ved festen
     spil(null); stopMusic(0.5); // kun snorken
     play('fx_snork_loop', { loop: true }).then((h) => { if (this.gone) h?.stop(); else this.snorkLyd = h; }).catch(() => {});
     lock(false);

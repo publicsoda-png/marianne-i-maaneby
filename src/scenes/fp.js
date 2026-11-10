@@ -2,7 +2,7 @@
 // Løst mission: save.flags['fp_' + mission] = true, save.log får { id, name, wrong, act }, og der klippes til ret (eller hub).
 // Banerne og deres regler ligger i src/fp/<mission>.js; her ligger kun styring, HUD og afslutning.
 import { register, goto } from '../core/scene.js';
-import { W, H, drawText, stipple } from '../core/stage.js';
+import { W, H, drawText, stipple, toStage } from '../core/stage.js';
 import { save, touch, persist } from '../core/state.js';
 import { makeRenderer, move, limitWorld } from '../fp/ray.js';
 import * as input from '../fp/input.js';
@@ -26,6 +26,12 @@ const ARROWS = [
   { id: 'fp_quit', label: 'Opgiv og gå tilbage', x: 8, y: 8, w: 64, h: 24, glyph: 'OPGIV', kind: 'quit' },
 ];
 const q = () => new URLSearchParams(location.search);
+// Hold en pil nede (mus eller finger): efter 250 ms går/drejer man, så længe man holder. Et kort tryk er stadig ét skridt (hotspot-klikket).
+let holdT = 0;
+const arrowAt = (e) => { const p = toStage(e); return ARROWS.find((a) => 'flbr'.includes(a.kind) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h); };
+addEventListener('pointerdown', (e) => { const a = arrowAt(e); if (!a) return; clearTimeout(holdT); holdT = setTimeout(() => input.hold(a.kind), 250); });
+const stopHold = () => { clearTimeout(holdT); input.release(); };
+addEventListener('pointerup', stopHold); addEventListener('pointercancel', stopHold); addEventListener('blur', stopHold);
 
 register({
   id: 'fp',
