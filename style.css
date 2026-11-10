@@ -1,0 +1,95 @@
+/* Marianne i Måneby — 640×480-scene skaleret med heltalsfaktor på sort baggrund. */
+:root {
+  --w: 640px; --h: 480px;
+  --win: #d4d0c8; --win-dark: #808080; --win-darker: #404040; --win-light: #fff;
+  --title-a: #0a246a; --title-b: #a6caf0;
+  --ui-font: Tahoma, "DejaVu Sans", Verdana, sans-serif;
+  --kid-font: "Comic Neue", "Comic Sans MS", "Chalkboard SE", cursive;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+body { font-family: var(--ui-font); -webkit-font-smoothing: none; font-smooth: never; }
+
+#app {
+  position: absolute; left: 0; top: 0; width: var(--w); height: var(--h);
+  transform-origin: 0 0; overflow: hidden; background: #000; cursor: none;
+}
+#stage { position: absolute; left: 0; top: 0; width: 640px; height: 480px; image-rendering: pixelated; image-rendering: crisp-edges; }
+#ui { position: absolute; left: 0; top: 0; width: 640px; height: 480px; pointer-events: none; }
+#ui > :not(.btn):not(.chip):not(.input) { pointer-events: none; } /* id-selector would otherwise beat .btn{pointer-events:auto} and kill every real click */
+#field { position: absolute; inset: 0; }
+#field .o { position: absolute; }
+#field .o img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; user-select: none; -webkit-user-drag: none; }
+#fx { position: absolute; inset: 0; }
+
+/* Era text box: top of screen, white text on translucent black */
+/* Era text box: top of screen, 1-bit text rasterised on the 640 grid (canvas, never DOM text) */
+#dialog { position: absolute; left: 0; top: 0; width: 640px; height: 76px; padding: 8px 12px; background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEUlEQVR4nGNkYGD4z4AE/gMADxUCAJS9O7cAAAAASUVORK5CYII=) 0 0/2px 2px repeat; image-rendering: pixelated; pointer-events: auto; } /* WP1: 2×2-dither (3 sorte + 1 gennemsigtig) i stedet for rgba(0,0,0,.72) – ingen nye farver (A3) */
+#dialog[hidden] { display: none; }
+#dialog { background-color: #0a0b1e; } /* tæt bund under prikmønstret, så lyse baggrunde ikke skinner igennem teksten */
+#dialog { border-bottom: 2px solid #ffd21f; box-sizing: border-box; }
+#dname { position: absolute; top: 74px; image-rendering: pixelated; }
+#dname[hidden] { display: none; }
+#dialog .text canvas { display: block; image-rendering: pixelated; }
+#dmore { position: absolute; right: 10px; bottom: 2px; font: 12px var(--ui-font); color: #fff; font-style: normal; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+/* The helper stands BIG in the scene, bottom-left (~130×250), like a 2005 narrator sprite */
+#helper { position: absolute; left: 6px; top: 226px; width: 130px; height: 250px; image-rendering: pixelated; }
+#helper.hidden { display: none; }
+
+/* Stone-slab buttons: 3 states = rest / hover = cursor hand only / pressed (.down, set by scene.js pressable(): sound on
+   pointerdown, action on pointerup) = inverted bevel + 1 px text shift. Hard states, no CSS motion. */
+.btn {
+  pointer-events: auto; position: absolute; height: 24px; padding: 0 10px; display: flex; align-items: center; justify-content: center;
+  color: #111; background: #c9c3b3; border: 2px solid; border-color: #f4f1ea #5e5a52 #5e5a52 #f4f1ea; box-shadow: 1px 1px 0 #2a2824;
+  user-select: none;
+}
+.btn canvas { image-rendering: pixelated; display: block; }
+.btn.down { border-color: #5e5a52 #f4f1ea #f4f1ea #5e5a52; }
+.btn.down canvas { transform: translate(1px, 1px); }
+
+/* Custom cursor sprite: PNG8 32×32 (arrow/hand/wait); cursor.js injects data-URL fallbacks only if a PNG fails to load */
+#cursor { position: absolute; left: 0; top: 0; width: 32px; height: 32px; pointer-events: none; z-index: 50;
+  background: url(assets/cursor-arrow.png) no-repeat; background-size: 32px 32px; image-rendering: pixelated; }
+#cursor.hand { background-image: url(assets/cursor-hand.png); margin-left: -6px; }
+#cursor.wait { background-image: url(assets/cursor-wait.png); }
+#cursor.hidden { display: none; }
+
+/* Fake OS (Windows 2000) */
+#os { position: absolute; inset: 0; background: #3a6ea5; z-index: 40; /* over #app, så program-bokse kan klikkes (c8 feel.mjs 09-11); under intet — #cursor ligger inde i #app, så systemmarkøren vises over bokse som i 2005 */ overflow: hidden; font: 11px var(--ui-font); }
+#os.off { display: none; }
+#os .desk-icon { position: absolute; width: 74px; text-align: center; color: #fff; text-shadow: 1px 1px 0 #000; cursor: default; user-select: none; }
+#os .desk-icon img, #os .desk-icon .ico { display: block; margin: 0 auto 3px; width: 32px; height: 32px; image-rendering: pixelated; }
+#os .desk-icon.sel span { background: #0a246a; outline: 1px dotted #fff; }
+#os .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; background: var(--win); border-top: 1px solid #fff; display: flex; align-items: center; padding: 0 2px; gap: 4px; }
+#os .start { height: 22px; padding: 0 6px 0 4px; display: flex; align-items: center; gap: 4px; font-weight: 700; border: 2px solid; border-color: #fff #404040 #404040 #fff; background: var(--win); }
+#os .start i { width: 16px; height: 14px; background: linear-gradient(90deg,#e33 25%,#3a3 25% 50%,#36c 50% 75%,#fc0 75%); display: inline-block; transform: skewX(-8deg); }
+#os .tray { margin-left: auto; height: 22px; padding: 0 8px; display: flex; align-items: center; border: 1px solid; border-color: #808080 #fff #fff #808080; }
+.win { position: absolute; background: var(--win); border: 2px solid; border-color: #fff #404040 #404040 #fff; box-shadow: 1px 1px 0 #000; font: 11px var(--ui-font); color: #000; }
+.win .title { height: 18px; margin: 1px; padding: 0 4px; display: flex; align-items: center; gap: 4px; color: #fff; font-weight: 700; background: linear-gradient(90deg, var(--title-a) 0 14%, color-mix(in srgb, var(--title-a) 83%, var(--title-b)) 14% 28%, color-mix(in srgb, var(--title-a) 67%, var(--title-b)) 28% 42%, color-mix(in srgb, var(--title-a) 50%, var(--title-b)) 42% 56%, color-mix(in srgb, var(--title-a) 33%, var(--title-b)) 56% 70%, color-mix(in srgb, var(--title-a) 17%, var(--title-b)) 70% 84%, var(--title-b) 84%); } /* 7 hard steps = 256-colour-era title bar */
+.win .title b { flex: 1; white-space: nowrap; overflow: hidden; }
+.win .title .x { width: 16px; height: 14px; font: 700 10px var(--ui-font); line-height: 12px; text-align: center; color: #000; background: var(--win); border: 1px solid; border-color: #fff #404040 #404040 #fff; }
+.win .body { padding: 10px 12px; display: flex; gap: 12px; align-items: flex-start; }
+.win .body .ico { width: 32px; height: 32px; flex: none; }
+.win .msg { padding-top: 4px; line-height: 1.4; min-width: 220px; white-space: pre-line; }
+.win .btns { display: flex; justify-content: center; gap: 6px; padding: 0 12px 12px; }
+.wbtn { min-width: 75px; height: 23px; font: 11px var(--ui-font); background: var(--win); border: 2px solid; border-color: #fff #404040 #404040 #fff; box-shadow: 0 0 0 1px #000; padding: 0 8px; }
+.wbtn:active, .wbtn.down { border-color: #404040 #fff #fff #404040; } /* .down = pressable() in scene.js (os.js may adopt it) */
+.wbtn:disabled { color: #808080; text-shadow: 1px 1px 0 #fff; }
+.wbtn.def { outline: 1px dotted #000; outline-offset: -4px; }
+.ico.warn { background: conic-gradient(#000 0 0) no-repeat; clip-path: polygon(50% 0,100% 100%,0 100%); background: #ffd800; }
+.ico.err { border-radius: 50%; background: #d02020; color: #fff; font: 700 22px/32px var(--ui-font); text-align: center; }
+.ico.info { border-radius: 50%; background: #fff; border: 2px solid #1b4fb0; color: #1b4fb0; font: 700 20px/28px Georgia, serif; text-align: center; }
+.progress { height: 16px; border: 1px solid; border-color: #808080 #fff #fff #808080; background: #fff; padding: 1px; margin: 6px 12px 8px; }
+.progress i { display: block; height: 100%; background: repeating-linear-gradient(90deg, #0a246a 0 8px, transparent 8px 10px); width: 0%; }
+.mono { font: 11px "Lucida Console", Menlo, monospace; white-space: pre-wrap; background: #fff; border: 1px solid; border-color: #808080 #fff #fff #808080; padding: 4px; margin: 0 12px 12px; max-height: 200px; overflow: auto; }
+
+/* Setup screen widgets drawn in DOM for real text input */
+.input { pointer-events: auto; position: absolute; font: 16px var(--kid-font); font-weight: 700; padding: 4px 8px; border: 2px solid; border-color: #404040 #fff #fff #404040; background: #fff; color: #000; outline: none; }
+.chip { pointer-events: auto; position: absolute; width: 34px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 12%, #86c8f0 12% 60%, #2f6fb0 60%); border: 2px solid #1b3f6b; color: #fff; font: 700 14px var(--kid-font); text-align: center; line-height: 26px; text-shadow: 1px 1px 0 #000; }
+.chip.on { background: radial-gradient(circle at 35% 30%, #fff 0 12%, #ffd34a 12% 60%, #c8870a 60%); border-color: #6b4a0b; outline: 2px solid #fff; outline-offset: 2px; } /* tydelig valgt-ramme (kolonne C) */
+
+/* Letterbox: fills the rest of the viewport */
+#letter { position: absolute; inset: 0; background: #000; z-index: -1; }
+/* QC #7: på touch-skærme er trykfladen 9 px større hele vejen rundt end den tegnede knap (usynligt), så Start/OK/Gem kan rammes i højformat */
+@media (pointer: coarse) { .btn::after { content: ''; position: absolute; inset: -9px; } }

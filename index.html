@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Marianne i Måneby</title>
+<link rel="icon" href="assets/favicon-cd.png" id="favicon">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="os" class="off"></div>
+<div id="app" aria-label="Marianne i Måneby">
+  <canvas id="stage" width="640" height="480"></canvas>
+  <div id="ui">
+    <div id="field"></div>
+    <canvas id="helper" width="130" height="250"></canvas>
+    <div id="dialog" hidden>
+      <div class="text"><canvas id="dtextc" width="600" height="60"></canvas><span id="dtext" hidden></span><i id="dmore">▼</i></div>
+      <canvas id="dname" width="10" height="20" hidden></canvas>
+    </div>
+    <div id="fx"></div>
+  </div>
+  <div id="cursor"></div>
+</div>
+<div id="letter"></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
