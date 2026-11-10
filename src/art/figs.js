@@ -17,6 +17,11 @@ export const FIGS = {
   mumle: { name: 'Mumle', col: '#8a2f3f', top: '#222222' },
 };
 export const FIG_IDS = Object.keys(FIGS);
+// Egne poser, som figuren selv spiller i ny og næ, når ingen taler (rækkerne udtryk1/udtryk2 er enkeltbilleder: frame = udtryk).
+const ROLLE = {
+  krumme: ['aelte', 'smage', 'overrasket'], decimal: ['pegepind', 'rette', 'skuffet'], gram: ['veje', 'aflaese', 'triumf'],
+  knold: ['spise', 'salut'], kurt: ['taelle', 'skeptisk'], sofus: ['zappe', 'vinke'], ulla: ['spejde', 'notere', 'aha'], mumle: ['spille', 'bukke'],
+};
 export const figName = (id) => (FIGS[id] ? FIGS[id].name : id);
 const PH_CELL = [48, 100]; // pladsholderens "celle", så skalering virker ens med og uden ark
 const sheets = new Map(); // id → { im, cell, poses }
@@ -85,6 +90,12 @@ export function autoPose(id, t) {
   const step = Math.floor(t / 100), off = (FIG_IDS.indexOf(id) + 1) * 7;
   const k = (step + off) % 37; // blink ca. hvert 3,7 s, forskudt pr. figur
   if (k < 2) return ['blink', k];
+  // rolle-animation ca. hvert 14. sekund (forskudt pr. figur), skiftevis figurens egne poser; 3 trin pr. frame, sidste frame holdes lidt
+  const R = ROLLE[id], sh = sheets.get(id);
+  if (R && sh && !talk.who) {
+    const s2 = step + off * 9, c = s2 % 140, pose = R[Math.floor(s2 / 140) % R.length], p = sh.poses[pose];
+    if (p && c < p[1] * 3 + 6) return [pose, Math.min(p[1] - 1, Math.floor(c / 3))];
+  }
   return ['idle', Math.floor(step / 5)];
 }
 /** Stil en figur i scenen med fodpunkt (x, y) og højde h px. opts.pose/opts.frame tvinger en pose (fx 'sove', 'synke'). */
