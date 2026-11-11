@@ -8,6 +8,7 @@ import { save, persist, touch } from '../core/state.js';
 import { sfx, play, music, preload, audioCtx } from '../core/audio.js';
 import { tell } from '../script.js';
 import { stand, hasPose } from '../art/figs.js';
+import { festTrin, festDrivhus, fnugPynt, BODER, bod, roeg, lampe, knoldPos, drawKnold, vindue } from '../art/hubliv.js';
 
 // Kontrakt (docs/RETNING.md): plot-id → minispil-fil. game = fil i src/ware/games (og baggrundsnavn); act = akten stedet åbner i;
 // fig = figuren der står ved stedet; mission = 3D-mission der startes herfra.
@@ -30,11 +31,11 @@ export const MISSION = { 2: 'drivhus', 3: 'kiosk', 4: 'taage' }; // akt → 3D-m
 export const FNUG_POS = [[235, 298], [332, 302], [430, 296], [150, 372], [512, 366], [248, 404], [335, 392], [562, 348], [286, 292], [256, 470], [424, 476], [395, 262]]; // alle 12 er hjemme
 const HUBFIGS = [ // figurer der står i byen: fodpunkt + højde
   { id: 'ulla', x: 248, y: 266, h: 52 },
-  { id: 'knold', x: 478, y: 404, h: 58 },
   { id: 'kurt', x: 362, y: 468, h: 64 },
   { id: 'mumle', x: 602, y: 462, h: 64 },
 ];
 const SOFA = { x: 512, y: 468 };
+const BAGERI_SKORSTEN = [-23, -66], LAMPE_HOVED = [0, -64]; // røg- og lyspunkt i forhold til stedets fodpunkt (trin 3); målt på stills
 export const persp = (y) => Math.round((0.84 + 0.16 * Math.min(1, Math.max(0, (y - 250) / 210))) * 100) / 100;
 export const act = () => Math.max(1, Math.min(4, save.act || 1));
 /** Aktens minispil er løst. */
@@ -117,6 +118,7 @@ register({
   id: 'hub',
   async enter(arg = {}) {
     this.bgc = bg('hub');
+    this.kt = 0; // Knolds rundeur (ms); står stille, mens nogen taler
     this.n = this.n || {};
     helper.present = true; showHelper(true);
     spil('byen');
@@ -149,7 +151,9 @@ register({
     hs.push({ id: 'bus', x: 18, y: 172, w: 56, h: 52, label: 'Busstoppested', on: () => { play('fx_bus_horn'); this.snak('bus'); } });
     hs.push({ id: 'program', x: 492, y: 172, w: 58, h: 44, label: 'Festprogram', on: () => this.snak('program', a - 1) });
     for (const p of PLOTS) hs.push({ id: p.id, x: p.x - 34, y: p.y - 48, w: 68, h: 58, label: p.act > a ? '?' : p.name + (save.buildings[p.id] ? ` (${save.buildings[p.id]}/3)` : ''), cursor: 'hand', on: () => this.pick(p) });
-    for (const f of HUBFIGS) hs.push({ id: 'fig_' + f.id, x: f.x - 18, y: f.y - f.h, w: 36, h: f.h + 4, label: f.id === 'kurt' ? 'Kiosk-Kurt' : { ulla: 'Ufo-Ulla', knold: 'Konstabel Knold', mumle: 'Mumle' }[f.id], on: () => this.figur(f.id) });
+    const kp = knoldPos(this.kt || 0); // Knold går sin runde: klikfeltet følger ham
+    hs.push({ id: 'fig_knold', x: kp.x - 18, y: kp.y - 58, w: 36, h: 62, label: 'Konstabel Knold', on: () => this.figur('knold') });
+    for (const f of HUBFIGS) hs.push({ id: 'fig_' + f.id, x: f.x - 18, y: f.y - f.h, w: 36, h: f.h + 4, label: f.id === 'kurt' ? 'Kiosk-Kurt' : { ulla: 'Ufo-Ulla', mumle: 'Mumle' }[f.id], on: () => this.figur(f.id) });
     hs.push({ id: 'fig_sofus', x: SOFA.x - 44, y: SOFA.y - 62, w: 88, h: 64, label: 'Sofus Sofa', on: () => this.figur('sofus') });
     return hs;
   },
@@ -179,6 +183,9 @@ register({
     const a = act();
     g.drawImage(this.bgc, 0, 0);
     himmel(g, tm);
+    const n = festTrin(PLOTS, save); // festen vokser med hver løst opgave
+    festDrivhus(g, n, tm);
+    if (document.getElementById('dialog').hidden) this.kt = (this.kt || 0) + dt * 1000;
     helperShadow(g);
     skilt(g, 46, 222, ['BUS', '7 MIN'], { w: 46, col: '#ffd21f' });
     skilt(g, 521, 214, ['FEST-', 'PROGRAM'], { w: 54 });
@@ -186,13 +193,17 @@ register({
     const items = [];
     for (const p of PLOTS) if (!p.scene) items.push({ y: p.y, draw: () => { // Drivhus 7 står i selve baggrunden
       drawPlot(g, p, save.buildings[p.id] || (p.mission && save.flags['fp_' + p.mission] ? 3 : 0), false, persp(p.y));
+      if (p.id === 'bageri' && save.buildings.bageri === 3) roeg(g, p.x + BAGERI_SKORSTEN[0], p.y + BAGERI_SKORSTEN[1], tm);
+      if (p.id === 'lampe' && save.buildings.lampe === 3) lampe(g, p.x + LAMPE_HOVED[0], p.y + LAMPE_HOVED[1], tm);
       if (p.act > a) drawText('?', p.x, p.y - 62, { align: 'center', font: '700 30px "Comic Neue","Comic Sans MS",sans-serif', color: '#ffd21f', outline: '#000' });
     } });
     const stepper = Math.floor(tm / 3200) % FNUG_POS.length, stepPhase = (tm % 3200) < 400 ? 1 : 0;
     // Fnuggerne står STILLE (æra-regel) — én tager et enkelt skridt ad gangen. Syv (id 6) vinker.
-    FNUG_POS.forEach(([x, y], i) => items.push({ y, draw: () => drawFnug(g, x, y, persp(y) * 0.8, { id: i, frame: i === 6 ? Math.floor(tm / 500) % 2 : (i === stepper ? stepPhase : 0) }) }));
+    FNUG_POS.forEach(([x, y], i) => items.push({ y, draw: () => { const fr = i === 6 ? Math.floor(tm / 500) % 2 : (i === stepper ? stepPhase : 0); drawFnug(g, x, y, persp(y) * 0.8, { id: i, frame: fr }); if (i !== 6) fnugPynt(g, i, x, y, persp(y) * 0.8, n, fr ? -1 : 0, tm); } }));
+    const kp = knoldPos(this.kt || 0); items.push({ y: kp.y, draw: () => drawKnold(g, kp, 58, tm) });
+    for (const b of BODER) if (n >= b.n) items.push({ y: b.y, draw: () => bod(g, b) });
     for (const f of HUBFIGS) items.push({ y: f.y, draw: () => { contactShadow(g, f.x - 14, f.y, 22); stand(g, f.id, f.x, f.y, f.h, tm); } });
-    items.push({ y: SOFA.y, draw: () => drawSofus(g, SOFA.x, SOFA.y, a, tm) });
+    items.push({ y: SOFA.y, draw: () => { drawSofus(g, SOFA.x, SOFA.y, a, tm); vindue(g, SOFA.x, SOFA.y + 8); } }); // Sofus ses gennem stuevinduet
     items.sort((p, q) => p.y - q.y).forEach((it) => it.draw());
     skilt(g, 314, 479, ['PRISER', ['+1/2', '+1/3', '+1/4', '+1/5'][a - 1]], { w: 40, col: '#ffffff', ink: '#a02020' });
     drawText('DRIVHUS 7', 320, 188, { align: 'center', font: F12, color: '#bfffb0', outline: '#000' });
