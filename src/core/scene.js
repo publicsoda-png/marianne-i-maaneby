@@ -60,6 +60,8 @@ function inPoly(p, poly) {
   }
   return c;
 }
+/** Id på hotspottet under musen (null, når intet eller låst). */
+export const hoverId = () => (hover && !locked ? hover.id ?? null : null);
 export let locked = false;
 export function lock(v) { locked = v; }
 const app = document.getElementById('app');

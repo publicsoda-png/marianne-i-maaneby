@@ -11,8 +11,8 @@ import './scenes/fp.js';
 import { ensureAudio } from './core/audio.js';
 import { showCursor } from './core/cursor.js';
 import { loadBgs, loadSprites } from './art/placeholder.js';
-import { loadFigs, drawFig } from './art/figs.js';
-import { allLines } from './script.js';
+import { loadFigs, drawFig, figDebug, talk } from './art/figs.js';
+import { allLines, HUMOER } from './script.js';
 import { lineCount } from './core/dialog.js';
 
 const q = new URLSearchParams(location.search);
@@ -33,7 +33,7 @@ function solveAct(n, { regn = true, mission = true } = {}) {
   if (regn) save.flags['regn' + n] = true;
 }
 
-window.MB = { save, goto, scene: () => save.scene, cur: () => current, lines: allLines, lineCount, games, figs, drawFig, solveAct, persist };
+window.MB = { save, goto, scene: () => save.scene, cur: () => current, lines: allLines, lineCount, games, figs, drawFig, solveAct, persist, figDebug, talk, humoer: HUMOER };
 if (q.has('dev')) {
   // ?dev&act=N (tidligere akter løst) · &klar (aktens minispil løst) · &mission (aktens 3D-mission løst) · &name=X · &scene=<id> · &plot=<plot-id>
   if (q.has('name')) save.name = q.get('name');

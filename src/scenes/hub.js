@@ -1,5 +1,5 @@
 // Bykortet: steder i Måneby, figurer, Fnugger, hjælper i hjørnet. save.act styrer, hvad der er åbent. Klokken er altid 16:20.
-import { register, goto, button, lock } from '../core/scene.js';
+import { register, goto, button, lock, hoverId } from '../core/scene.js';
 import { drawText } from '../core/stage.js';
 import { bg, drawFnug, castShadow, sprite, contactShadow } from '../art/placeholder.js';
 import { buildSwap, drawPlot } from '../art/fx.js';
@@ -7,7 +7,7 @@ import { helper, countHelpClick, showHelper } from '../core/dialog.js';
 import { save, persist, touch } from '../core/state.js';
 import { sfx, play, music, preload, audioCtx } from '../core/audio.js';
 import { tell } from '../script.js';
-import { stand, hasPose } from '../art/figs.js';
+import { stand, hasPose, setMood, talk } from '../art/figs.js';
 import { festTrin, festDrivhus, fnugPynt, BODER, bod, roeg, lampe, knoldPos, drawKnold, vindue } from '../art/hubliv.js';
 
 // Kontrakt (docs/RETNING.md): plot-id → minispil-fil. game = fil i src/ware/games (og baggrundsnavn); act = akten stedet åbner i;
@@ -202,6 +202,8 @@ register({
     FNUG_POS.forEach(([x, y], i) => items.push({ y, draw: () => { const fr = i === 6 ? Math.floor(tm / 500) % 2 : (i === stepper ? stepPhase : 0); drawFnug(g, x, y, persp(y) * 0.8, { id: i, frame: fr }); if (i !== 6) fnugPynt(g, i, x, y, persp(y) * 0.8, n, fr ? -1 : 0, tm); } }));
     const kp = knoldPos(this.kt || 0); items.push({ y: kp.y, draw: () => drawKnold(g, kp, 58, tm) });
     for (const b of BODER) if (n >= b.n) items.push({ y: b.y, draw: () => bod(g, b) });
+    const hv = hoverId(); // musen på en figur, og ingen taler → figuren vinker
+    if (hv && hv.startsWith('fig_') && !talk.who) setMood(hv.slice(4), 'vinker', 150);
     for (const f of HUBFIGS) items.push({ y: f.y, draw: () => { contactShadow(g, f.x - 14, f.y, 22); stand(g, f.id, f.x, f.y, f.h, tm); } });
     items.push({ y: SOFA.y, draw: () => { drawSofus(g, SOFA.x, SOFA.y, a, tm); vindue(g, SOFA.x, SOFA.y + 8); } }); // Sofus ses gennem stuevinduet
     items.sort((p, q) => p.y - q.y).forEach((it) => it.draw());

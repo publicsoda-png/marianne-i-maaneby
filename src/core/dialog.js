@@ -8,7 +8,7 @@ import { sprite } from '../art/placeholder.js';
 import { meta, persistMeta } from './state.js';
 import { text1bit } from './stage.js';
 import { voiceFor } from '../voicemap.js';
-import { talk, figName, hasFig, hasPose, drawFig } from '../art/figs.js';
+import { talk, figName, hasFig, hasPose, drawFig, setMood } from '../art/figs.js';
 
 const box = document.getElementById('dialog');
 const more = document.getElementById('dmore');
@@ -94,13 +94,16 @@ export function drawHelper() {
 export function showHelper(v) { helper.visible = v; idleSince = performance.now(); drawHelper(); }
 let idleSince = performance.now();
 setInterval(() => { if (helper.visible && box.hidden) drawHelper(); }, 100); // hjælperen lever også uden dialog
-export function hideDialog() { box.hidden = true; idleSince = performance.now(); cancelAnimationFrame(raf); talk.who = null; talk.mouth = 0; helper.mouth = 0; drawHelper(); }
+export function hideDialog() { box.hidden = true; idleSince = performance.now(); cancelAnimationFrame(raf); talk.who = null; talk.mouth = 0; talk.mood = null; talk.held = null; helper.mouth = 0; drawHelper(); }
+/** Hvilken sætning (0, 1, …) det sidst viste tegn hører til: tælles på . ! ? — en afsluttende gruppe tæller med til sætningen før. */
+export const saetning = (vist) => (vist.replace(/[.!?]+\s*$/, '').match(/[.!?]+/g) || []).length;
 
-/** say(text, opts): who (figur-id), voice, mouth, cps, hold, auto, noPortrait, pauseAt, keep */
+/** say(text, opts): who (figur-id), voice, mouth, cps, hold, auto, noPortrait, pauseAt, keep,
+ *  mood (udtryk pr. sætning, sidste genbruges), greet (figuren vinker 600 ms, før teksten begynder) */
 export async function say(text, opts = {}) {
   if (!opts.voice) { const v = voiceFor(text); if (v) opts = { ...opts, ...v }; }
   const who = opts.who && opts.who !== 'sloev' ? opts.who : null; // Skipper Sløv ER hjælperen
-  talk.who = null; talk.mouth = 0;
+  talk.who = null; talk.mouth = 0; talk.mood = null; talk.held = null;
   const gen = ++sayGen;
   if (waiting) { const w = waiting; waiting = null; w(); } // release an older say() that is waiting for a click
   box.hidden = false;
@@ -112,6 +115,13 @@ export async function say(text, opts = {}) {
   showPlate(who ? figName(who) : (!opts.noPortrait && helper.present && helper.visible ? figName('sloev') : null), inset);
   more.style.visibility = 'hidden';
   skipping = false;
+  if (who && opts.greet) { // hilsen: vink først; et klik imens springer bare teksten frem som ellers
+    animateHelper(null); setMood(who, 'vinker', 600);
+    await sleep(600);
+    if (gen !== sayGen) return;
+  }
+  const moods = who && Array.isArray(opts.mood) && opts.mood.length ? opts.mood : null;
+  const moodAt = (vist) => (moods ? moods[Math.min(saetning(vist), moods.length - 1)] : null);
   let v = null, vAt = 0;
   // the typewriter starts at once; the voice joins when its buffer is ready (QC: text used to wait seconds for the load on live)
   const vp = opts.voice ? playVoice(opts.voice, opts.mouth, { silent: !!opts.silent }).then((r) => { v = r; vAt = performance.now(); return r; }) : null; // silent = real mouth data, no sound (min 60)
@@ -124,7 +134,15 @@ export async function say(text, opts = {}) {
   const talking = !who && !opts.noPortrait && helper.present;
   let shown = 0;
   const mouthNow = () => (v ? v.mouth() : helper.silentMouth || (shown < text.length ? 1 + ((shown >> 1) % 3) : 0));
-  animateHelper(() => { if (who && gen === sayGen) { talk.who = who; talk.mouth = mouthNow(); } return talking ? mouthNow() : 0; });
+  animateHelper(() => {
+    if (who && gen === sayGen) {
+      const vist = text.slice(0, shown);
+      talk.who = who; talk.mood = moodAt(vist);
+      talk.mouth = !v && /[.!?…]$/.test(vist) ? 0 : mouthNow(); // skrivemaskinen: munden lukker i pausen efter en sætning
+      if (talk.mouth) talk.openAt = performance.now();
+    }
+    return talking ? mouthNow() : 0;
+  });
   let lastTick = 0;
   while (shown < text.length) {
     if (gen !== sayGen) { if (v && v.stop) v.stop(); return; } // a newer say() took over the box
@@ -142,6 +160,7 @@ export async function say(text, opts = {}) {
   if (v) { if (skipping && v.stop) v.stop(); else await v.done; }
   if (gen !== sayGen) return; // en nyere say() har overtaget
   animateHelper(null); talk.who = null; talk.mouth = 0;
+  if (moods) { talk.mood = moodAt(text); talk.held = who; } // sidste udtryk holdes til næste say()/hideDialog()
   if (opts.hold) await sleep(opts.hold);
   if (opts.auto) { await sleep(opts.auto); if (gen === sayGen && opts.keep !== true) hideDialog(); return; }
   if (gen !== sayGen) return;

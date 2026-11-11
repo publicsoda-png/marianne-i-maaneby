@@ -2,12 +2,12 @@
 // → bygningstrin + linje i Dagens regnskab (save.log, med akt) → tilbage til hubben.
 import { register, goto, lock, button, current } from '../core/scene.js';
 import { bg, contactShadow } from '../art/placeholder.js';
-import { say, hideDialog } from '../core/dialog.js';
+import { say, hideDialog, sleep } from '../core/dialog.js';
 import { save, touch, persist } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 import { tell } from '../script.js';
 import { playGame, stopGame } from '../ware/engine.js';
-import { stand } from '../art/figs.js';
+import { stand, setMood } from '../art/figs.js';
 import { spil } from './hub.js';
 
 const GAMES = {};
@@ -64,7 +64,8 @@ register({
     await say(line(G, p.game, 'ok', 'Godt klaret!'));
     if (gone()) return;
     this.figOn = true;
-    if (!again) await tell(p.id + '_efter');
+    if (p.fig) setMood(p.fig, 'griner', 1200); // figuren kommer tilbage og griner over den løste opgave
+    if (!again) { await sleep(700); if (gone()) return; await tell(p.id + '_efter'); }
     if (gone()) return;
     if (stage === 3 && !save.stickers.includes(p.id)) { save.stickers.push(p.id); sfx.sticker(); await tell('sticker'); if (gone()) return; }
     lock(false);

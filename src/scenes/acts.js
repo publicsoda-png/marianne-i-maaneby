@@ -9,7 +9,7 @@ import { sfx, play, stopMusic, voice as playVoice } from '../core/audio.js';
 import { t, tell, tellAll } from '../script.js';
 import { voiceFor } from '../voicemap.js';
 import { bg, hasBg, sprite, drawFnug, contactShadow } from '../art/placeholder.js';
-import { stand, hasPose, drawFig } from '../art/figs.js';
+import { stand, hasPose, drawFig, setMood, udtryk } from '../art/figs.js';
 import { ACT_NAMES, act, actDone, missionDone, helperShadow, spil, drawSofus } from './hub.js';
 
 const F = (px) => `700 ${px}px "Comic Neue","Comic Sans MS",sans-serif`;
@@ -249,7 +249,7 @@ register({
   async enter() {
     this.bgc = festBg();
     this.tal = tally();
-    Object.assign(this, { chart: false, bars: 0, fyr: false, fyrT0: 0, lastBurst: -1, asleep: 0, sloevSover: false, diplom: false });
+    Object.assign(this, { chart: false, bars: 0, fyr: false, fyrT0: 0, lastBurst: -1, asleep: 0, gab: null, sloevSover: false, diplom: false });
     helper.present = true; showHelper(true);
     spil('fest');
     lock(true);
@@ -267,18 +267,21 @@ register({
     await tell('fest_mumle');
     await tell('fest_gram'); await tell('fest_decimal'); await tell('fest_sofus'); await tell('fest_marianne');
     const sover = [0, 1, 3, 5, 6, 8, 8]; // hvor mange der sover, når hver del af talen begynder
-    for (let i = 0; i < 7; i++) { this.asleep = sover[i]; if (i === 5) this.fyr = false; await tell('tale', { i }); }
+    for (let i = 0; i < 7; i++) { this.sovNu(sover[i]); if (i === 5) this.fyr = false; await tell('tale', { i }); }
     this.sloevSover = true; helper.mouth = 0;
     this.diplom = true; play('fx_diplom_fanfare');
     await tell('diplom', { i: 0 });
     await tell('diplom', { i: 1 });
-    this.asleep = 9;
+    this.sovNu(9);
     save.flags.fest = true; touch(); persist(true);
     lock(false);
     button('Videre', 290, 340, () => { sfx.click(); goto('credits'); }, { w: 70 });
   },
   exit() { showHelper(false); },
   sleeping(id) { return SLEEP_ORDER.indexOf(id) < this.asleep; },
+  /** Flere falder i søvn: de nye gaber først i 1,5 s (kun figurer med et gabe-udtryk). */
+  sovNu(n) { if (n > this.asleep) this.gab = { fra: this.asleep, t: performance.now() }; this.asleep = n; },
+  gaber(id) { const g = this.gab, k = SLEEP_ORDER.indexOf(id); return !!g && k >= g.fra && k < this.asleep && performance.now() - g.t < 1500 && !!udtryk(id, 'gaber'); },
   bg(g, dt, tm) {
     g.drawImage(this.bgc, 0, 0); helperShadow(g);
     drawText('HØSTFEST', 386, 112, { align: 'center', font: F(30), color: '#ffd21f', outline: '#5a3a00' });
@@ -291,7 +294,9 @@ register({
       if (i !== 6 && i < fa) zzz(g, x + 4, y - 44, tm, i);
     }
     GUESTS.forEach((id, i) => {
-      const x = guestX(i), y = 452 + (i % 2) * 14, s = this.sleeping(id);
+      const x = guestX(i), y = 452 + (i % 2) * 14, gab = this.gaber(id), s = this.sleeping(id) && !gab;
+      if (gab) setMood(id, 'gaber', 120);
+      else if (this.fyr && !s && (STEP(tm) + i * 17) % 40 < 8) setMood(id, (Math.floor(tm / 4000) + i) % 2 ? 'griner' : 'glad', 120); // korte glimt, forskudt pr. gæst
       contactShadow(g, x - 16, y, 30);
       stand(g, id, x, y, 92, tm, s ? { pose: 'sove', frame: 0 } : {});
       if (s) zzz(g, x + 8, y - 104, tm, i);

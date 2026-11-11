@@ -6,6 +6,7 @@
 // beløb er skrevet, som de skal siges ("klokken seksten tyve", "nul kroner og nul øre"). Ingen specialtegn.
 // En liste er enten en sekvens (siges i rækkefølge), varianter (tilfældig) eller ét pr. akt — det står ved nøglen.
 import { say } from './core/dialog.js';
+import { figName } from './art/figs.js';
 
 const MANUS = {
   // ------------------------------------------------------------------ Skipper Sløv (hjælperen; uden navn i boksen)
@@ -349,6 +350,106 @@ const MANUS = {
   },
 };
 
+// HUMOER — figurens udtryk pr. sætning (src/art/figs.js UDTRYK): én streng pr. replik, ét ord pr. sætning (talt på . ! ?),
+// lister har én streng pr. variant. Sidste udtryk genbruges, hvis der er flere sætninger. Mangler nøglen, bruges intet udtryk.
+// glad · sur · forvirret · taenker · griner · gaber · vinker · peger. Tonen er tør: griner sjældent.
+export const HUMOER = {
+  // Vægtmester Gram: tænker, glad, forvirret
+  vaegt_foer: 'glad peger taenker glad',
+  vaegt_efter: 'glad taenker forvirret glad',
+  vaegt_igen: 'forvirret peger taenker',
+  lampe_foer: 'glad taenker forvirret peger',
+  lampe_efter: 'glad forvirret taenker glad',
+  lampe_igen: 'forvirret taenker peger',
+  fest_gram: 'taenker forvirret glad',
+  // Bager Krumme: glad, griner, forvirret når der mangler noget
+  bageri_foer: 'glad peger forvirret glad',
+  bageri_efter: 'glad taenker griner glad peger',
+  bageri_igen: 'glad forvirret taenker',
+  fest_krumme: 'glad taenker griner forvirret',
+  // Frk. Decimal: sur, peger, tænker; sjældent glad
+  skole_foer: 'sur peger taenker sur',
+  skole_efter: 'glad peger sur',
+  skole_igen: 'peger sur taenker',
+  afstemning_foer: 'sur taenker peger taenker sur',
+  afstemning_efter: 'peger sur taenker',
+  afstemning_igen: 'sur forvirret peger',
+  fest_decimal: 'taenker peger',
+  // Ufo-Ulla: tænker, forvirret, peger
+  bed_foer: 'glad taenker peger sur taenker',
+  bed_efter: 'glad peger sur taenker',
+  bed_igen: 'peger forvirret glad taenker',
+  krater_foer: 'peger taenker forvirret gaber peger',
+  krater_vent: 'forvirret taenker peger',
+  krater_efter: 'glad peger forvirret taenker',
+  ulla_hub: [
+    'glad peger taenker forvirret sur',
+    'peger taenker forvirret taenker',
+    'peger forvirret taenker glad',
+    'peger taenker forvirret sur',
+    'taenker peger forvirret peger',
+    'peger forvirret taenker',
+    'glad taenker forvirret',
+    'taenker peger forvirret peger',
+  ],
+  fest_ulla: 'glad peger taenker',
+  // Mumle: glad, tænker, stolt (= glad)
+  blanding_foer: 'glad glad taenker peger taenker glad',
+  blanding_efter: 'glad peger taenker glad',
+  blanding_igen: 'glad taenker',
+  mumle_hub: [
+    'glad taenker glad taenker',
+    'peger glad taenker',
+    'glad taenker',
+    'taenker forvirret',
+    'taenker glad peger forvirret',
+    'peger taenker glad',
+    'glad taenker glad',
+    'glad taenker griner',
+  ],
+  fest_mumle: 'glad peger',
+  // Konstabel Knold: sur, peger, glad ved mad
+  popcorn_foer: 'sur glad sur peger glad',
+  popcorn_efter: 'glad sur peger',
+  popcorn_igen: 'glad forvirret taenker',
+  knold_hub: [
+    'sur peger sur glad forvirret sur',
+    'peger sur glad',
+    'peger sur peger',
+    'sur taenker glad',
+    'sur forvirret taenker',
+    'glad sur glad',
+    'sur peger glad',
+    'glad sur',
+  ],
+  fest_knold: 'glad peger',
+  // Kiosk-Kurt: glad, peger, griner når priserne stiger
+  kiosk_foer: 'glad glad griner taenker peger',
+  kiosk_efter: 'glad forvirret peger',
+  kiosk_igen: 'glad griner peger',
+  kiosk_mission: ['glad taenker peger', 'taenker peger sur glad'],
+  kiosk_mission_efter: 'glad peger taenker forvirret',
+  kiosk_vent: 'peger glad',
+  kurt_pris: ['peger griner glad', 'taenker glad peger', 'glad griner taenker peger', 'glad peger taenker'],
+  fest_kurt: 'peger griner',
+  // Sofus Sofa: glad, tænker; doven (kun udtryk1 + vinke; sunket ned vinder synke-posen)
+  sofus_hub: [
+    'glad glad taenker taenker',
+    'glad taenker glad',
+    'forvirret taenker glad',
+    'forvirret glad taenker',
+    'forvirret taenker taenker glad',
+    'glad taenker',
+    'taenker glad taenker glad',
+    'taenker glad',
+  ],
+  fest_sofus: 'glad taenker glad',
+};
+/** Udtryk for replik k (variant n) som liste, eller undefined. */
+export const humoer = (k, n = 0) => { const h = HUMOER[k], s = Array.isArray(h) ? h[n] : h; return s ? s.split(' ') : undefined; };
+// Navnet, som det siges i replikkerne ("Frøken Decimal", ikke "Frk. Decimal") — en replik, der starter med det, er en hilsen.
+const taltNavn = (who) => figName(who).replace(/^Frk\. /, 'Frøken ');
+
 // ---------- opslag ----------
 export const L = {}; // nøgle → tekst | [tekster]
 export const WHO = {}; // nøgle → figur-id
@@ -361,12 +462,15 @@ export function t(k, i) {
   if (!Array.isArray(v)) return v;
   return i === undefined ? pick(v) : v[Math.max(0, Math.min(v.length - 1, i | 0))];
 }
-/** Sig en replik med den rigtige figur (navn i boksen + figurens mund). opts.i = indeks i en liste. */
+/** Sig en replik med den rigtige figur (navn i boksen + figurens mund + udtryk pr. sætning). opts.i = indeks i en liste. */
 export function tell(k, opts = {}) {
   const { i, ...rest } = opts;
-  const text = t(k, i);
+  const v = L[k];
+  const n = Array.isArray(v) ? (i === undefined ? Math.floor(Math.random() * v.length) : Math.max(0, Math.min(v.length - 1, i | 0))) : 0;
+  const text = Array.isArray(v) ? v[n] : v;
   if (!text) return Promise.resolve();
-  return say(text, { who: WHO[k] === 'sloev' ? undefined : WHO[k], noPortrait: WHO[k] !== 'sloev', ...rest });
+  const who = WHO[k] === 'sloev' ? undefined : WHO[k];
+  return say(text, { who, noPortrait: WHO[k] !== 'sloev', mood: who && humoer(k, n), greet: !!who && text.startsWith(taltNavn(who)), ...rest });
 }
 /** Sig hele sekvensen bag en nøgle, én replik ad gangen. */
 export async function tellAll(k, opts = {}) {

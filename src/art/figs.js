@@ -17,10 +17,16 @@ export const FIGS = {
   mumle: { name: 'Mumle', col: '#8a2f3f', top: '#222222' },
 };
 export const FIG_IDS = Object.keys(FIGS);
-// Egne poser, som figuren selv spiller i ny og næ, når ingen taler (rækkerne udtryk1/udtryk2 er enkeltbilleder: frame = udtryk).
+// Udtryk: rækkerne udtryk1/udtryk2 er enkeltbilleder (frame = udtryk). Navn → [række, frame].
+export const UDTRYK = { glad: ['udtryk1', 0], sur: ['udtryk1', 1], forvirret: ['udtryk1', 2], taenker: ['udtryk1', 3], griner: ['udtryk2', 0], gaber: ['udtryk2', 1], vinker: ['udtryk2', 2], peger: ['udtryk2', 3] };
+// Sofus står uden sofa i udtryk2: kun udtryk1 + hans egen vinke-pose; gaber findes ikke for ham.
+const SOFUS_U = { griner: 'glad', peger: 'taenker', vinker: 'vinke', gaber: null };
+// Egne poser, som figuren selv spiller i ny og næ, når ingen taler. Et udtryksnavn i listen holdes ca. 10 trin i stedet.
 const ROLLE = {
-  krumme: ['aelte', 'smage', 'overrasket'], decimal: ['pegepind', 'rette', 'skuffet'], gram: ['veje', 'aflaese', 'triumf'],
-  knold: ['spise', 'salut'], kurt: ['taelle', 'skeptisk'], sofus: ['zappe', 'vinke'], ulla: ['spejde', 'notere', 'aha'], mumle: ['spille', 'bukke'],
+  krumme: ['aelte', 'glad', 'smage', 'gaber', 'overrasket', 'taenker'], decimal: ['pegepind', 'taenker', 'rette', 'gaber', 'skuffet', 'glad'],
+  gram: ['veje', 'taenker', 'aflaese', 'gaber', 'triumf', 'glad'], knold: ['spise', 'gaber', 'salut', 'glad', 'taenker'],
+  kurt: ['taelle', 'glad', 'skeptisk', 'taenker', 'gaber'], sofus: ['zappe', 'taenker', 'vinke', 'glad'],
+  ulla: ['spejde', 'taenker', 'notere', 'gaber', 'aha', 'glad'], mumle: ['spille', 'glad', 'bukke', 'taenker', 'gaber'],
 };
 export const figName = (id) => (FIGS[id] ? FIGS[id].name : id);
 const PH_CELL = [48, 100]; // pladsholderens "celle", så skalering virker ens med og uden ark
@@ -81,12 +87,32 @@ function placeholder(g, id, pose, frame, x, y, s) {
   g.drawImage(lab, Math.round(X - lab.width / 2), by + R(18));
 }
 
+/** Udtryk → [pose, frame] for netop denne figur, eller null (intet ark/ingen række, Sofus uden gaber, Sløv/Marianne). */
+export function udtryk(id, navn, t = performance.now()) {
+  if (id === 'sofus' && navn in SOFUS_U) navn = SOFUS_U[navn];
+  if (navn === 'vinke') return hasPose(id, 'vinke') ? ['vinke', Math.floor(t / 300) % 2] : null;
+  const u = UDTRYK[navn];
+  return u && hasPose(id, u[0]) ? [u[0], u[1]] : null;
+}
+
 // ---------- hvem taler (sættes af say() i core/dialog.js via opts.who) ----------
-export const talk = { who: null, mouth: 0 };
+// mood = sætningens udtryk; openAt = sidst munden var åben (ms). held = figuren, der holder sit udtryk, mens der ventes på klik.
+export const talk = { who: null, mouth: 0, mood: null, openAt: 0, held: null };
+const kort = new Map(); // id → { navn, until }: kortvarigt udtryk uden for tale (hilsen, hover, opgave løst, fest)
+/** Vis et udtryk i ms millisekunder, når figuren ikke taler. Taber altid til en tvungen pose i stand(). */
+export function setMood(id, navn, ms) { kort.set(id, { navn, until: performance.now() + ms }); }
+export const figDebug = {}; // id → [pose, frame], sidst tegnet af stand() (til test)
 
 /** Automatisk pose på 10 fps step-ur: talk mens figuren taler, ellers idle med et blink i ny og næ. t = ms. */
 export function autoPose(id, t) {
-  if (talk.who === id) return ['talk', talk.mouth | 0];
+  const now = performance.now();
+  if (talk.who === id) { // udtrykket vises, når munden har været lukket i mindst 120 ms
+    const u = talk.mood && now - talk.openAt >= 120 && udtryk(id, talk.mood, t);
+    return u || ['talk', talk.mouth | 0];
+  }
+  if (talk.held === id && talk.mood) { const u = udtryk(id, talk.mood, t); if (u) return u; }
+  const m = kort.get(id);
+  if (m && now < m.until) { const u = udtryk(id, m.navn, t); if (u) return u; }
   const step = Math.floor(t / 100), off = (FIG_IDS.indexOf(id) + 1) * 7;
   const k = (step + off) % 37; // blink ca. hvert 3,7 s, forskudt pr. figur
   if (k < 2) return ['blink', k];
@@ -94,12 +120,14 @@ export function autoPose(id, t) {
   const R = ROLLE[id], sh = sheets.get(id);
   if (R && sh && !talk.who) {
     const s2 = step + off * 9, c = s2 % 140, pose = R[Math.floor(s2 / 140) % R.length], p = sh.poses[pose];
-    if (p && c < p[1] * 3 + 6) return [pose, Math.min(p[1] - 1, Math.floor(c / 3))];
+    if (UDTRYK[pose]) { const u = c < 10 && udtryk(id, pose, t); if (u) return u; } // udtryk holdes ca. 1 s
+    else if (p && c < p[1] * 3 + 6) return [pose, Math.min(p[1] - 1, Math.floor(c / 3))];
   }
   return ['idle', Math.floor(step / 5)];
 }
-/** Stil en figur i scenen med fodpunkt (x, y) og højde h px. opts.pose/opts.frame tvinger en pose (fx 'sove', 'synke'). */
+/** Stil en figur i scenen med fodpunkt (x, y) og højde h px. opts.pose/opts.frame tvinger en pose (fx 'sove', 'synke'); den vinder over udtryk. */
 export function stand(g, id, x, y, h, t, opts = {}) {
-  const [pose, frame] = opts.pose && talk.who !== id ? [opts.pose, opts.frame ?? Math.floor(t / 500)] : autoPose(id, t);
+  const [pose, frame] = opts.pose ? (talk.who === id ? ['talk', talk.mouth | 0] : [opts.pose, opts.frame ?? Math.floor(t / 500)]) : autoPose(id, t);
+  figDebug[id] = [pose, frame];
   drawFig(g, id, pose, frame, x, y, h / figCell(id)[1]);
 }
